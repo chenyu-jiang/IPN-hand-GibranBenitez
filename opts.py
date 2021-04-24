@@ -321,6 +321,38 @@ def parse_opts_offline():
         default=1.0, 
         type=float, 
         help='The applied width multiplier to scale number of filters')
+    
+    parser.add_argument(
+        '--embedding_dim', 
+        default=128, 
+        type=int, 
+        help='The embedding dimension size (if TCN is used).')
+
+    parser.add_argument(
+        '--tcn_encoder', 
+        default='resnet34',
+        type=str, 
+        help='The encoder model used in TCN.')
+    
+    parser.add_argument(
+        '--tcn_stages', 
+        default=2,
+        type=int, 
+        help='# of stages used in TCN.')
+    
+    parser.add_argument(
+        '--tcn_layers', 
+        default=5,
+        type=int, 
+        help='# of TCN layers used.')
+    
+    parser.add_argument(
+        '--tcn_causality', 
+        default='none',
+        type=str, 
+        help="""TCN causality, can be 'none', 'all', or 'mix_X', 
+                where X is an integer indicating the number of 
+                non-causal layers used in each stage.""")
 
     args = parser.parse_args()
 

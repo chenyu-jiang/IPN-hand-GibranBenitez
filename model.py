@@ -4,10 +4,12 @@ import pdb
 
 from models import resnet, resnext, resnetl, c3d, mobilenetv2, shufflenetv2
 
+from action_recognition.models.ms_tcn import MultiStageTemporalConvNet
+
 
 def generate_model(opt):
     assert opt.model in [
-        'resnet', 'resnetl', 'resnext', 'c3d', 'mobilenetv2', 'shufflenetv2'
+        'resnet', 'resnetl', 'resnext', 'c3d', 'mobilenetv2', 'shufflenetv2', "mstcn"
     ]
 
     if opt.model == 'resnet':
@@ -81,9 +83,21 @@ def generate_model(opt):
             num_classes=opt.n_classes,
             sample_size=opt.sample_size,
             width_mult=opt.width_mult)
+
+    elif opt.model == "mstcn":
+        model = MultiStageTemporalConvNet(
+            embed_size=opt.embedding_dim,
+            encoder=opt.tcn_encoder,
+            n_classes=opt.n_classes,
+            input_size=(opt.sample_size, opt.sample_size),
+            input_channels= 4 if opt.modality != "RGB" else 3,
+            num_stages=opt.tcn_stages,
+            causal_config=opt.tcn_causality,
+            CTHW_layout=True,
+            with_fc = True
+        )
     
     if not opt.no_cuda:
-        model = nn.DataParallel(model, device_ids=None)
 
         if opt.pretrain_path:
             print('loading pretrained model {}'.format(opt.pretrain_path))
@@ -109,11 +123,12 @@ def generate_model(opt):
             model = _construct_depth_model(model)
             print("[INFO]: Done. Flow model ready.")
         elif opt.modality in ['RGB-D', 'RGB-flo', 'RGB-seg']:
-            print("[INFO]: Converting the pretrained model to RGB+D init model")
-            model = _construct_rgbdepth_model(model)
-            if opt.no_first_lay:
-                model = _modify_first_conv_layer(model,3,4) ##### Check models trained (3,7,7) or (7,7,7)
-            print("[INFO]: Done. RGB-D model ready.")
+            if opt.model != "mstcn":
+                print("[INFO]: Converting the pretrained model to RGB+D init model")
+                model = _construct_rgbdepth_model(model)
+                if opt.no_first_lay:
+                    model = _modify_first_conv_layer(model,3,4) ##### Check models trained (3,7,7) or (7,7,7)
+                print("[INFO]: Done. RGB-D model ready.")
         if opt.pretrain_dataset == opt.dataset:
             model.load_state_dict(pretrain['state_dict'])
         elif opt.pretrain_dataset in ['egogesture', 'nv', 'denso']:
@@ -122,14 +137,15 @@ def generate_model(opt):
             model.load_state_dict(pretrain['state_dict'],strict=False)
 
         # Check first kernel size 
-        modules = list(model.modules())
-        first_conv_idx = list(filter(lambda x: isinstance(modules[x], nn.Conv3d),
-                                                   list(range(len(modules)))))[0]
+        if opt.model != "mstcn":
+            modules = list(model.modules())
+            first_conv_idx = list(filter(lambda x: isinstance(modules[x], nn.Conv3d),
+                                                    list(range(len(modules)))))[0]
 
-        conv_layer = modules[first_conv_idx]
-        if conv_layer.kernel_size[0]> opt.sample_duration:
-            print("[INFO]: RGB model is used for init model")
-            model = _modify_first_conv_layer(model,int(opt.sample_duration/2),1) 
+            conv_layer = modules[first_conv_idx]
+            if conv_layer.kernel_size[0]> opt.sample_duration:
+                print("[INFO]: RGB model is used for init model")
+                model = _modify_first_conv_layer(model,int(opt.sample_duration/2),1) 
 
 
         if opt.model == 'c3d':# CHECK HERE
@@ -141,12 +157,18 @@ def generate_model(opt):
                 nn.Dropout(0.9),
                 nn.Linear(model.module.classifier[1].in_features, opt.n_finetune_classes))
             model.module.classifier = model.module.classifier.cuda()
-        else:
+        elif opt.model != "mstcn":
             model.module.fc = nn.Linear(model.module.fc.in_features,
                                         opt.n_finetune_classes)
             model.module.fc = model.module.fc.cuda()
 
-        parameters = get_fine_tuning_parameters(model, opt.ft_begin_index)
+        if opt.model != "mstcn":
+            parameters = get_fine_tuning_parameters(model, opt.ft_begin_index)
+        else:
+            parameters = model.trainable_parameters()
+
+        model = nn.DataParallel(model, device_ids=None)
+
         model = model.cuda()
         return model, parameters
 

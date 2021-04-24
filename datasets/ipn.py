@@ -229,10 +229,12 @@ class IPN(data.Dataset):
         if self.spatial_transform is not None:
             self.spatial_transform.randomize_parameters()
             clip = [self.spatial_transform(img) for img in clip]
-    
+
         im_dim = clip[0].size()[-2:]
         clip = torch.cat(clip, 0).view((self.sample_duration, -1) + im_dim).permute(1, 0, 2, 3)
-        
+
+        # clip is of shape [channel, sample_duration, image_dim[0], image_dim[1]]
+        # target is just a single label index
      
         target = self.data[index]
         if self.target_transform is not None:
