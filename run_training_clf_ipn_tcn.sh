@@ -6,10 +6,10 @@ python main.py \
 	--result_path IPN-hand/results_ipn \
 	--dataset ipn \
 	--sample_duration 32 \
-    --learning_rate 0.01 \
+    --learning_rate 0.001 \
     --model mstcn \
 	--embedding_dim 128 \
-	--batch_size 64 \
+	--batch_size 256 \
 	--n_classes 13 \
 	--n_finetune_classes 13 \
 	--n_threads 16 \
@@ -18,5 +18,5 @@ python main.py \
 	--train_crop random \
 	--n_val_samples 1 \
 	--test_subset test \
-    --n_epochs 100 \
+    --n_epochs 500 \
     --store_name ipnClfRs_TCN_b32 \

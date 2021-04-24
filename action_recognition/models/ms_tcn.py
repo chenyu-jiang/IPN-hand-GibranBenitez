@@ -93,6 +93,9 @@ class MultiStageTemporalConvNet(nn.Module):
         self.avgpool = nn.AdaptiveAvgPool2d((1, 1))
         self.CTHW_layout = CTHW_layout
         self.with_fc = with_fc
+        self.n_classes = n_classes
+        if self.with_fc:
+            self.fc = nn.Linear(self.n_classes, self.n_classes)
 
         # for backward compatibility
         if num_f_maps > 0:
@@ -137,8 +140,11 @@ class MultiStageTemporalConvNet(nn.Module):
         # (B x n_classes x T) -> (B x T x n_classes)
         ys = ys.transpose(1, 2)
 
+        # (B x T x n_classes) -> (B x n_classes)
+        ys = torch.mean(ys, dim=1)
+
         if self.with_fc:
-            ys = nn.Linear(ys, n_classes)
+            ys = self.fc(ys)
 
         return ys
 

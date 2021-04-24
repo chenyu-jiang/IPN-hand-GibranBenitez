@@ -7,6 +7,7 @@ import shutil
 from torch import nn
 from torch import optim
 from torch.optim import lr_scheduler
+from torch.utils.tensorboard import SummaryWriter
 
 from opts import parse_opts_offline
 from model import generate_model
@@ -135,18 +136,22 @@ if __name__ == '__main__':
         train_batch_logger = Logger(
             os.path.join(opt.result_path, 'train_batch_{}.log'.format(opt.store_name)),
             ['epoch', 'batch', 'iter', 'loss', 'acc', 'precision', 'recall', 'lr'])
-
+        train_tensorboard_writer = SummaryWriter(os.path.join(opt.result_path, "tensorboard"))
         if opt.nesterov:
             dampening = 0
         else:
             dampening = opt.dampening
+        # optimizer = optim.SGD(
+        #     parameters,
+        #     lr=opt.learning_rate,
+        #     momentum=opt.momentum,
+        #     dampening=dampening,
+        #     weight_decay=opt.weight_decay,
+        #     nesterov=opt.nesterov)
         optimizer = optim.SGD(
             parameters,
             lr=opt.learning_rate,
-            momentum=opt.momentum,
-            dampening=dampening,
-            weight_decay=opt.weight_decay,
-            nesterov=opt.nesterov)
+            weight_decay=opt.weight_decay)
         # scheduler = lr_scheduler.ReduceLROnPlateau(
         #     optimizer, 'min', patience=opt.lr_patience)
     if not opt.no_val:
@@ -193,19 +198,20 @@ if __name__ == '__main__':
             optimizer.load_state_dict(checkpoint['optimizer'])
 
     print('run')
+    global_step = 0
     # pdb.set_trace()
     for i in range(opt.begin_epoch, opt.n_epochs + 1):
         if not opt.no_train:
             adjust_learning_rate(optimizer, i, opt.lr_steps)
-            train_epoch(i, train_loader, model, criterion, optimizer, opt,
-                        train_logger, train_batch_logger)
+            global_step = train_epoch(i, train_loader, model, criterion, optimizer, opt,
+                        train_logger, train_batch_logger, global_step, train_tensorboard_writer)
         if not opt.no_val:
             if opt.true_valid:
                 validation_loss, prec1 = val_epoch_true(i, val_loader, model, criterion, opt,
-                                        val_logger)
+                                        val_logger, global_step, train_tensorboard_writer)
             else:
                 validation_loss, prec1 = val_epoch(i, val_loader, model, criterion, opt,
-                                            val_logger)
+                                            val_logger, global_step, train_tensorboard_writer)
             print('     Valid acc: {}  ({}, ep: {})'.format(prec1,best_prec1,ep_best))
             sys.stdout.flush()
             is_best = prec1 > best_prec1

@@ -9,7 +9,7 @@ from utils import AverageMeter, calculate_accuracy, calculate_precision, calcula
 
 
 def train_epoch(epoch, data_loader, model, criterion, optimizer, opt,
-                epoch_logger, batch_logger):
+                epoch_logger, batch_logger, global_step, tsboard_writer=None):
     print('train at epoch {}'.format(epoch))
     sys.stdout.flush()
 
@@ -35,6 +35,7 @@ def train_epoch(epoch, data_loader, model, criterion, optimizer, opt,
         #pdb.set_trace()
         outputs = model(inputs)
         loss = criterion(outputs, targets)
+
         acc = calculate_accuracy(outputs, targets)
         precision = calculate_precision(outputs, targets) #
         recall = calculate_recall(outputs,targets)
@@ -81,6 +82,12 @@ def train_epoch(epoch, data_loader, model, criterion, optimizer, opt,
                       precision=precisions,
                       recall=recalls))
             sys.stdout.flush()
+        if tsboard_writer is not None:
+            tsboard_writer.add_scalar("training loss", losses.val, global_step)
+            tsboard_writer.add_scalar("training acc", accuracies.val, global_step)
+            tsboard_writer.add_scalar("training precision", precisions.val, global_step)
+            tsboard_writer.add_scalar("training recall", recalls.val, global_step)
+        global_step += 1
 
     epoch_logger.log({
         'epoch': epoch,
@@ -90,6 +97,7 @@ def train_epoch(epoch, data_loader, model, criterion, optimizer, opt,
         'recall':recalls.avg,
         'lr': optimizer.param_groups[0]['lr']
     })
+    return global_step
 
     #if epoch % opt.checkpoint == 0:
     #    save_file_path = os.path.join(opt.result_path,

@@ -9,7 +9,7 @@ import numpy as np
 from utils import AverageMeter, calculate_accuracy, calculate_precision, calculate_recall, Queue
 
 
-def val_epoch(epoch, data_loader, model, criterion, opt, logger):
+def val_epoch(epoch, data_loader, model, criterion, opt, logger, global_step, tsboard_writer=None):
     print('validation at epoch {}'.format(epoch))
 
     model.eval()
@@ -65,10 +65,15 @@ def val_epoch(epoch, data_loader, model, criterion, opt, logger):
                 'precision':precisions.avg,
                 'recall':recalls.avg
                 })
+    if tsboard_writer is not None:
+        tsboard_writer.add_scalar("validation loss", losses.avg, global_step)
+        tsboard_writer.add_scalar("validation acc", accuracies.avg, global_step)
+        tsboard_writer.add_scalar("validation precision", precisions.avg, global_step)
+        tsboard_writer.add_scalar("validation recall", recalls.avg, global_step)
 
     return losses.avg, accuracies.avg
 
-def val_epoch_true(epoch, data_loader, model, criterion, opt, logger):
+def val_epoch_true(epoch, data_loader, model, criterion, opt, logger, global_step, tsboard_writer=None):
     print('validation at epoch {}'.format(epoch))
 
     model.eval()
@@ -134,5 +139,11 @@ def val_epoch_true(epoch, data_loader, model, criterion, opt, logger):
                 'precision':precisions.avg,
                 'recall':recalls.avg
                 })
+
+    if tsboard_writer is not None:
+        tsboard_writer.add_scalar("validation loss", losses.avg, global_step)
+        tsboard_writer.add_scalar("validation acc", accuracies.avg, global_step)
+        tsboard_writer.add_scalar("validation precision", precisions.avg, global_step)
+        tsboard_writer.add_scalar("validation recall", recalls.avg, global_step)
 
     return losses.avg, accuracies.avg
