@@ -159,7 +159,7 @@ inst_ids.append(-1)
 out_queue = []
 for i, (inputs, targets) in enumerate(test_loader):
     if not opt.no_cuda:
-        targets = targets.cuda(async=True)
+        targets = targets.cuda(non_blocking=True)
         inputs = inputs.cuda()
     #inputs = Variable(torch.squeeze(inputs), volatile=True)
     end_time = time.time()

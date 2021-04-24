@@ -27,7 +27,7 @@ def val_epoch(epoch, data_loader, model, criterion, opt, logger):
         data_time.update(time.time() - end_time)
 
         if not opt.no_cuda:
-            targets = targets.cuda(async=True)
+            targets = targets.cuda(non_blocking=True)
         with torch.no_grad():
             inputs = Variable(inputs)
             targets = Variable(targets)
@@ -88,7 +88,7 @@ def val_epoch_true(epoch, data_loader, model, criterion, opt, logger):
         data_time.update(time.time() - end_time)
 
         if not opt.no_cuda:
-            targets = targets.cuda(async=True)
+            targets = targets.cuda(non_blocking=True)
         with torch.no_grad():
             inputs = Variable(inputs)
             targets = Variable(targets)

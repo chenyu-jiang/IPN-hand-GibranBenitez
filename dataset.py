@@ -1,5 +1,5 @@
 from datasets.jester import Jester
-from datasets.egogesture import EgoGesture
+#from datasets.egogesture import EgoGesture
 from datasets.nv import NV
 from datasets.ipn import IPN
 from datasets.nv_online import NVOnline
