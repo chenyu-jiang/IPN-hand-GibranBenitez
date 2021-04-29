@@ -93,8 +93,7 @@ def generate_model(opt):
             input_channels= 4 if opt.modality != "RGB" else 3,
             num_stages=opt.tcn_stages,
             causal_config=opt.tcn_causality,
-            CTHW_layout=True,
-            with_fc = True
+            CTHW_layout=True
         )
     
     if not opt.no_cuda:

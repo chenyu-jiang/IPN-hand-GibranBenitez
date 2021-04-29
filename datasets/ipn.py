@@ -70,6 +70,15 @@ def video_loader(video_dir_path, frame_indices, modality, sample_duration, image
             image = image_loader(image_path, 'RGB')
             image_depth = image_loader(image_path_depth, 'Depth')
 
+            # preprocess segment images
+            if sensor == 'segment':
+                image_depth_pixels = image_depth.load()
+                for i in range(image_depth.size[0]): # for every pixel:
+                    for j in range(image_depth.size[1]):
+                        R, G, B = image_depth_pixels[i, j]
+                        if R > 200 or G < 200 or B < 200:
+                            image_depth_pixels[i,j] = (0, 0 ,0)
+
             if os.path.exists(image_path):
                 video.append(image)
                 video.append(image_depth)

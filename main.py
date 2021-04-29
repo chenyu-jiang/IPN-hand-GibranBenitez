@@ -30,11 +30,12 @@ def save_checkpoint(state, is_best, filename='checkpoint.pth.tar'):
     if is_best:
         shutil.copyfile('%s/%s_checkpoint.pth' % (opt.result_path, opt.store_name),'%s/%s_best.pth' % (opt.result_path, opt.store_name))
 
-def adjust_learning_rate(optimizer, epoch, lr_steps):
+def adjust_learning_rate(optimizer, epoch, lr_steps, enabled=False):
     """Sets the learning rate to the initial LR decayed by 10 every 30 epochs"""
-    lr_new = opt.learning_rate * (0.1 ** (sum(epoch >= np.array(lr_steps))))
-    for param_group in optimizer.param_groups:
-        param_group['lr'] = lr_new
+    if enabled:
+        lr_new = opt.learning_rate * (0.1 ** (sum(epoch >= np.array(lr_steps))))
+        for param_group in optimizer.param_groups:
+            param_group['lr'] = lr_new
 
 best_prec1 = 0
 ep_best = 0
@@ -148,7 +149,7 @@ if __name__ == '__main__':
         #     dampening=dampening,
         #     weight_decay=opt.weight_decay,
         #     nesterov=opt.nesterov)
-        optimizer = optim.SGD(
+        optimizer = optim.Adam(
             parameters,
             lr=opt.learning_rate,
             weight_decay=opt.weight_decay)

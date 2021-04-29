@@ -84,7 +84,7 @@ class MultiStageTemporalConvNet(nn.Module):
 
     def __init__(self, embed_size, encoder='resnet34', n_classes=400, input_size=(224, 224), pretrained=True,
                  input_channels=3, num_stages=1, num_layers=5, num_f_maps=0, causal_config='none',
-                 CTHW_layout=False, with_fc=False):
+                 CTHW_layout=False):
         super().__init__()
 
         # encoder
@@ -92,10 +92,12 @@ class MultiStageTemporalConvNet(nn.Module):
         self.encoder = encoder.features
         self.avgpool = nn.AdaptiveAvgPool2d((1, 1))
         self.CTHW_layout = CTHW_layout
-        self.with_fc = with_fc
         self.n_classes = n_classes
-        if self.with_fc:
-            self.fc = nn.Linear(self.n_classes, self.n_classes)
+        self.fc1 = nn.Linear(embed_size * 2, embed_size)
+        self.fc2 = nn.Linear(embed_size, embed_size)
+        self.fc3 = nn.Linear(embed_size, self.n_classes)
+        self.relu = nn.LeakyReLU()
+
 
         # for backward compatibility
         if num_f_maps > 0:
@@ -117,7 +119,7 @@ class MultiStageTemporalConvNet(nn.Module):
             raise RuntimeError("Unknown causal config")
 
         # decoder
-        self.decoder = MsTcn(num_stages, num_layers, embed_size, encoder.features_shape[0], n_classes, causal)
+        self.decoder = MsTcn(num_stages, num_layers, embed_size, encoder.features_shape[0], embed_size, causal)
 
     def forward(self, images):
         """Extract the image feature vectors and run them through the MS-TCN"""
@@ -140,11 +142,18 @@ class MultiStageTemporalConvNet(nn.Module):
         # (B x n_classes x T) -> (B x T x n_classes)
         ys = ys.transpose(1, 2)
 
-        # (B x T x n_classes) -> (B x n_classes)
-        ys = torch.mean(ys, dim=1)
+        # (B x T x embed_size) -> (B x embed_size)
+        ys_avg = torch.mean(ys, dim=1)
+        ys_max, _ = torch.max(ys, dim=1)
 
-        if self.with_fc:
-            ys = self.fc(ys)
+        # 2 * (B x embed_size) -> (B x embed_size * 2)
+        ys_out = torch.cat((ys_avg, ys_max), dim = 1)
+
+        ys = self.fc1(ys_out)
+        ys = self.relu(ys)
+        ys = self.fc2(ys)
+        ys = self.relu(ys)
+        ys = self.fc3(ys)
 
         return ys
 

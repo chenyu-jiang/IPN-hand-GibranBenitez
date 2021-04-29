@@ -3,7 +3,7 @@ python main.py \
 	--root_path /home/cyjiang \
 	--video_path IPN-hand-dataset \
 	--annotation_path IPN-hand/annotation_ipnGesture/ipnall_but_None.json \
-	--result_path IPN-hand/results_ipn \
+	--result_path IPN-hand/results_ipn_adam_avg_max_fc3 \
 	--dataset ipn \
 	--sample_duration 32 \
     --learning_rate 0.001 \
@@ -18,5 +18,5 @@ python main.py \
 	--train_crop random \
 	--n_val_samples 1 \
 	--test_subset test \
-    --n_epochs 500 \
+    --n_epochs 1000 \
     --store_name ipnClfRs_TCN_b32 \
