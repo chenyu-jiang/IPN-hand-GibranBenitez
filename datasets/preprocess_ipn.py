@@ -9,6 +9,87 @@ from multiprocessing import Pool
 class EmptySegMaskError(Exception):
     pass
 
+def preprocess_clip(args):
+    cn, segments_dir, frames_dir, \
+    preprocessed_segments_dir, preprocessed_frames_dir = args
+
+    seg_clip_prefix = os.path.join(segments_dir, cn)
+    frame_clip_prefix = os.path.join(frames_dir, cn)
+    preprocessed_seg_clip_prefix = os.path.join(preprocessed_segments_dir, cn)
+    preprocessed_frames_clip_prefix = os.path.join(preprocessed_frames_dir, cn)
+
+    os.mkdir(preprocessed_seg_clip_prefix)
+    os.mkdir(preprocessed_frames_clip_prefix)
+
+    filenames = sorted([fn for fn in os.listdir(seg_clip_prefix) if not fn.startswith(".")])
+
+    bounding_box_positions = []
+    needs_interp = False
+    interp_idxes = []
+    rgb_imgs = []
+    seg_imgs = []
+    for idx, fn in enumerate(filenames):
+        rgb_img = cv2.imread(os.path.join(frame_clip_prefix, fn) ,cv2.IMREAD_COLOR)
+        seg_img = cv2.imread(os.path.join(seg_clip_prefix, fn) ,cv2.IMREAD_COLOR)
+
+        supress_non_hand_pixels(seg_img)
+
+        rgb_imgs.append(rgb_img)
+        seg_imgs.append(seg_img)
+
+        try:
+            corner, width, height = get_bounding_box(seg_img)
+        except EmptySegMaskError:
+            # empty seg mask, should infer bounding box info from neighbours
+            bounding_box_positions.append(None)
+            needs_interp = True
+            interp_idxes.append(idx)
+            continue
+
+        bounding_box_positions.append((corner, width, height))
+    
+    # fill in the empty bounding boxes
+    if needs_interp:
+        # flatten bounding_box_positions
+        cXs = []
+        cYs = []
+        widths = []
+        heights = []
+        valid_idxs = []
+        for idx, pos in enumerate(bounding_box_positions):
+            if pos is not None:
+                cXs.append(pos[0][0])
+                cYs.append(pos[0][1])
+                widths.append(pos[1])
+                heights.append(pos[2])
+                valid_idxs.append(idx)
+        # interp corner location
+        intp_cXs = np.interp(interp_idxes, valid_idxs, cXs)
+        intp_cYs = np.interp(interp_idxes, valid_idxs, cYs)
+        intp_widths = np.interp(interp_idxes, valid_idxs, widths)
+        intp_heights = np.interp(interp_idxes, valid_idxs, heights)
+        counter = 0
+        for idx, pos in enumerate(bounding_box_positions):
+            if pos is None:
+                bounding_box_positions[idx] = ((intp_cXs[counter], intp_cYs[counter]),
+                                                intp_widths[counter],
+                                                intp_heights[counter])
+                counter += 1
+    
+    preprocessed_clip_positions_dict = {}
+    for idx, pos in enumerate(bounding_box_positions):
+        (corner, width, height) = pos
+        fn = filenames[idx]
+        rgb_img = rgb_imgs[idx]
+        seg_img = seg_imgs[idx]
+
+        preprocessed_clip_positions[fn] = (corner, width, height)
+
+        rgb_img, seg_img = crop_images_by_bounding_box([rgb_img, seg_img], corner, width, height)
+        cv2.imwrite(os.path.join(preprocessed_frames_clip_prefix, fn), rgb_img)
+        cv2.imwrite(os.path.join(preprocessed_seg_clip_prefix, fn), seg_img)
+    return preprocessed_clip_positions_dict
+
 def supress_non_hand_pixels(img):
     height, width, _ = img.shape
     for i in range(height):
@@ -85,89 +166,14 @@ def preprocess_ipn_dataset(dataset_prefix, frames_dir="frames", segs_dir="segmen
 
     clip_names = [fn for fn in os.listdir(segments_dir) if not fn.startswith(".")]
 
+    args = [(cn, segments_dir, frames_dir,
+            preprocessed_segments_dir, preprocessed_frames_dir) for cn in clip_names]
+
     preprocessed_clip_positions = {}
-
-    def preprocess_clip(cn):
-        seg_clip_prefix = os.path.join(segments_dir, cn)
-        frame_clip_prefix = os.path.join(frames_dir, cn)
-        preprocessed_seg_clip_prefix = os.path.join(preprocessed_segments_dir, cn)
-        preprocessed_frames_clip_prefix = os.path.join(preprocessed_frames_dir, cn)
-
-        os.mkdir(preprocessed_seg_clip_prefix)
-        os.mkdir(preprocessed_frames_clip_prefix)
-
-        filenames = sorted([fn for fn in os.listdir(seg_clip_prefix) if not fn.startswith(".")])
-
-        bounding_box_positions = []
-        needs_interp = False
-        interp_idxes = []
-        rgb_imgs = []
-        seg_imgs = []
-        for idx, fn in tqdm(enumerate(filenames), total=len(filenames)):
-            rgb_img = cv2.imread(os.path.join(frame_clip_prefix, fn) ,cv2.IMREAD_COLOR)
-            seg_img = cv2.imread(os.path.join(seg_clip_prefix, fn) ,cv2.IMREAD_COLOR)
-
-            supress_non_hand_pixels(seg_img)
-
-            rgb_imgs.append(rgb_img)
-            seg_imgs.append(seg_img)
-
-            try:
-                corner, width, height = get_bounding_box(seg_img)
-            except EmptySegMaskError:
-                # empty seg mask, should infer bounding box info from neighbours
-                bounding_box_positions.append(None)
-                needs_interp = True
-                interp_idxes.append(idx)
-                continue
-
-            bounding_box_positions.append((corner, width, height))
-        
-        # fill in the empty bounding boxes
-        if needs_interp:
-            # flatten bounding_box_positions
-            cXs = []
-            cYs = []
-            widths = []
-            heights = []
-            valid_idxs = []
-            for idx, pos in enumerate(bounding_box_positions):
-                if pos is not None:
-                    cXs.append(pos[0][0])
-                    cYs.append(pos[0][1])
-                    widths.append(pos[1])
-                    heights.append(pos[2])
-                    valid_idxs.append(idx)
-            # interp corner location
-            intp_cXs = np.interp(interp_idxes, valid_idxs, cXs)
-            intp_cYs = np.interp(interp_idxes, valid_idxs, cYs)
-            intp_widths = np.interp(interp_idxes, valid_idxs, widths)
-            intp_heights = np.interp(interp_idxes, valid_idxs, heights)
-            counter = 0
-            for idx, pos in enumerate(bounding_box_positions):
-                if pos is None:
-                    bounding_box_positions[idx] = ((intp_cXs[counter], intp_cYs[counter]),
-                                                    intp_widths[counter],
-                                                    intp_heights[counter])
-                    counter += 1
-        
-        preprocessed_clip_positions_dict = {}
-        for idx, pos in enumerate(bounding_box_positions), total=len(bounding_box_positions):
-            (corner, width, height) = pos
-            fn = filenames[idx]
-            rgb_img = rgb_imgs[idx]
-            seg_img = seg_imgs[idx]
-
-            preprocessed_clip_positions[fn] = (corner, width, height)
-
-            rgb_img, seg_img = crop_images_by_bounding_box([rgb_img, seg_img], corner, width, height)
-            cv2.imwrite(os.path.join(preprocessed_frames_clip_prefix, fn), rgb_img)
-            cv2.imwrite(os.path.join(preprocessed_seg_clip_prefix, fn), seg_img)
-        return preprocessed_clip_positions_dict
 
     print("Launching parallel processing jobs...")
     with Pool(multiprocessing.cpu_count()) as p:
-        result = list(tqdm(p.imap(preprocess_clip, clip_names), total=len(clip_names)))
+        result = list(tqdm(p.imap(preprocess_clip, args), total=len(args)))
 
     print("Joining clip level dicts...")
     for clip_dict in tqdm(result):
@@ -177,4 +183,3 @@ def preprocess_ipn_dataset(dataset_prefix, frames_dir="frames", segs_dir="segmen
         json.dump(preprocessed_clip_positions, f)
 
     return preprocessed_dir, preprocessed_frames, clip_position_path
-
