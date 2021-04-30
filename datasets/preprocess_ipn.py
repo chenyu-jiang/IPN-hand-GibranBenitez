@@ -3,6 +3,9 @@ import numpy as np
 import os
 from tqdm import tqdm
 
+import multiprocessing
+from multiprocessing import Pool
+
 class EmptySegMaskError(Exception):
     pass
 
@@ -84,7 +87,7 @@ def preprocess_ipn_dataset(dataset_prefix, frames_dir="frames", segs_dir="segmen
 
     preprocessed_clip_positions = {}
 
-    for cn in tqdm(clip_names):
+    def preprocess_clip(cn):
         seg_clip_prefix = os.path.join(segments_dir, cn)
         frame_clip_prefix = os.path.join(frames_dir, cn)
         preprocessed_seg_clip_prefix = os.path.join(preprocessed_segments_dir, cn)
@@ -148,7 +151,8 @@ def preprocess_ipn_dataset(dataset_prefix, frames_dir="frames", segs_dir="segmen
                                                     intp_heights[counter])
                     counter += 1
         
-        for idx, pos in tqdm(enumerate(bounding_box_positions), total=len(bounding_box_positions)):
+        preprocessed_clip_positions_dict = {}
+        for idx, pos in enumerate(bounding_box_positions), total=len(bounding_box_positions):
             (corner, width, height) = pos
             fn = filenames[idx]
             rgb_img = rgb_imgs[idx]
@@ -159,6 +163,15 @@ def preprocess_ipn_dataset(dataset_prefix, frames_dir="frames", segs_dir="segmen
             rgb_img, seg_img = crop_images_by_bounding_box([rgb_img, seg_img], corner, width, height)
             cv2.imwrite(os.path.join(preprocessed_frames_clip_prefix, fn), rgb_img)
             cv2.imwrite(os.path.join(preprocessed_seg_clip_prefix, fn), seg_img)
+        return preprocessed_clip_positions_dict
+
+    print("Launching parallel processing jobs...")
+    with Pool(multiprocessing.cpu_count()) as p:
+        result = list(tqdm(p.imap(preprocess_clip, clip_names), total=len(clip_names)))
+
+    print("Joining clip level dicts...")
+    for clip_dict in tqdm(result):
+        preprocessed_clip_positions.update(clip_dict)
 
     with open(clip_position_path, "w") as f:
         json.dump(preprocessed_clip_positions, f)
