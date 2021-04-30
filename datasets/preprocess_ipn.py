@@ -3,6 +3,9 @@ import numpy as np
 import os
 from tqdm import tqdm
 
+class EmptySegMaskError(Exception):
+    pass
+
 def supress_non_hand_pixels(img):
     height, width, _ = img.shape
     for i in range(height):
@@ -17,6 +20,11 @@ def get_bounding_box(img, binarize_thresh=10, contour_size_filter_thresh=0.1):
     contours, _ = cv2.findContours(img_binarized, 1, 2)
 
     contours_areas = [cv2.contourArea(cnt) for cnt in contours]
+
+    if not contours_areas:
+        # empty segmentation mask
+        raise EmptySegMaskError
+
     max_cnt_area = max(contours_areas)
 
     filtered_contours = []
@@ -36,7 +44,21 @@ def crop_images_by_bounding_box(imgs, corner, width, height, output_width=224, o
     cX, cY = corner
     cropped_images = []
     for img in imgs:
-        cropped_images.append(cv2.resize(img[cY:cY+height, cX:cX+width], (output_width, output_height), interpolation=cv2.INTER_LINEAR))
+        # pad image if the bounding box extends out of bounds
+        y_size, x_size = img.shape
+        xbef_pad_size = max(0, -cX)
+        xaft_pad_size = max(0, cX+width-x_size)
+        ybef_pad_size = max(0, -cY)
+        yaft_pad_size = max(0, cY+height-y_size)
+
+        padded_img = np.pad(img, [(ybef_pad_size, yaft_pad_size), 
+                                    (xbef_pad_size, xaft_pad_size)])
+
+        cropped_images.append(cv2.resize(
+            padded_img[cY+ybef_pad_size : cY+height+ybef_pad_size.
+                cX+xbef_pad_size : cX+width+xbef_pad_size],
+            (output_width, output_height), 
+            interpolation=cv2.INTER_LINEAR))
     return cropped_images
 
 def preprocess_ipn_dataset(dataset_prefix, frames_dir="frames", segs_dir="segment"):
@@ -55,6 +77,9 @@ def preprocess_ipn_dataset(dataset_prefix, frames_dir="frames", segs_dir="segmen
     preprocessed_frames_dir = os.path.join(preprocessed_dir, "frames")
     preprocessed_segments_dir = os.path.join(preprocessed_dir, "segment")
 
+    os.mkdir(preprocessed_frames_dir)
+    os.mkdir(preprocessed_segments_dir)
+
     clip_names = [fn for fn in os.listdir(segments_dir) if not fn.startswith(".")]
 
     preprocessed_clip_positions = {}
@@ -63,24 +88,80 @@ def preprocess_ipn_dataset(dataset_prefix, frames_dir="frames", segs_dir="segmen
         seg_clip_prefix = os.path.join(segments_dir, cn)
         frame_clip_prefix = os.path.join(frames_dir, cn)
         preprocessed_seg_clip_prefix = os.path.join(preprocessed_segments_dir, cn)
-        preprocessed_frames_clip_prefix = os.path.join(preprocessed_segments_dir, cn)
+        preprocessed_frames_clip_prefix = os.path.join(preprocessed_frames_dir, cn)
 
         os.mkdir(preprocessed_seg_clip_prefix)
         os.mkdir(preprocessed_frames_clip_prefix)
 
-        filenames = [fn for fn in os.listdir(seg_clip_prefix) if not fn.startswith(".")]
+        filenames = sorted([fn for fn in os.listdir(seg_clip_prefix) if not fn.startswith(".")])
 
-        os.mkdir()
-        for fn in tqdm(filenames):
+        bounding_box_positions = []
+        needs_interp = False
+        interp_idxes = []
+        rgb_imgs = []
+        seg_imgs = []
+        for idx, fn in tqdm(enumerate(filenames), total=len(filenames)):
             rgb_img = cv2.imread(os.path.join(frame_clip_prefix, fn) ,cv2.IMREAD_COLOR)
             seg_img = cv2.imread(os.path.join(seg_clip_prefix, fn) ,cv2.IMREAD_COLOR)
+
             supress_non_hand_pixels(seg_img)
-            corner, width, height = get_bounding_box(seg_img)
+
+            rgb_imgs.append(rgb_img)
+            seg_imgs.append(seg_img)
+
+            try:
+                corner, width, height = get_bounding_box(seg_img)
+            except EmptySegMaskError:
+                # empty seg mask, should infer bounding box info from neighbours
+                bounding_box_positions.append(None)
+                needs_interp = True
+                interp_idxes.append(idx)
+                continue
+
+            bounding_box_positions.append((corner, width, height))
+        
+        # fill in the empty bounding boxes
+        if needs_interp:
+            # flatten bounding_box_positions
+            cXs = []
+            cYs = []
+            widths = []
+            heights = []
+            valid_idxs = []
+            for idx, pos in enumerate(bounding_box_positions):
+                if pos is not None:
+                    cXs.append(pos[0][0])
+                    cYs.append(pos[0][1])
+                    widths.append(pos[1])
+                    heights.append(pos[2])
+                    valid_idxs.append(idx)
+            # interp corner location
+            intp_cXs = np.interp(interp_idxes, valid_idxs, cXs)
+            intp_cYs = np.interp(interp_idxes, valid_idxs, cYs)
+            intp_widths = np.interp(interp_idxes, valid_idxs, widths)
+            intp_heights = np.interp(interp_idxes, valid_idxs, heights)
+            counter = 0
+            for idx, pos in enumerate(bounding_box_positions):
+                if pos is None:
+                    bounding_box_positions[idx] = ((intp_cXs[counter], intp_cYs[counter]),
+                                                    intp_widths[counter],
+                                                    intp_heights[counter])
+                    counter += 1
+        
+        for idx, pos in tqdm(enumerate(bounding_box_positions), total=len(bounding_box_positions)):
+            (corner, width, height) = pos
+            fn = filenames[idx]
+            rgb_img = rgb_imgs[idx]
+            seg_img = seg_imgs[idx]
+
             preprocessed_clip_positions[fn] = (corner, width, height)
+
             rgb_img, seg_img = crop_images_by_bounding_box([rgb_img, seg_img], corner, width, height)
             cv2.imwrite(os.path.join(preprocessed_frames_clip_prefix, fn), rgb_img)
             cv2.imwrite(os.path.join(preprocessed_seg_clip_prefix, fn), seg_img)
+
     with open(clip_position_path, "w") as f:
         json.dump(preprocessed_clip_positions, f)
+
     return preprocessed_dir, preprocessed_frames, clip_position_path
 
