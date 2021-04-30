@@ -256,7 +256,7 @@ class IPN(data.Dataset):
 
         if self.temporal_transform is not None:
             frame_indices = self.temporal_transform(frame_indices)
-        clip = self.loader(path, frame_indices, self.modality, self.sample_duration)
+        clip, clip_meta = self.loader(path, frame_indices, self.modality, self.sample_duration)
         oversample_clip =[]
         if self.spatial_transform is not None:
             self.spatial_transform.randomize_parameters()
@@ -267,7 +267,9 @@ class IPN(data.Dataset):
 
         # clip is of shape [channel, sample_duration, image_dim[0], image_dim[1]]
         # target is just a single label index
-     
+
+        # TODO(cyjiang): transform clip_meta into appropriate data form
+
         target = self.data[index]
         if self.target_transform is not None:
             target = self.target_transform(target)

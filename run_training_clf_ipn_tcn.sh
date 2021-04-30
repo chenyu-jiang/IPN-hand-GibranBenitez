@@ -1,6 +1,6 @@
 #!/bin/bash
 python main.py \
-	--root_path /home/cyjiang \
+	--root_path /home/net/cyjiang/COMP9501 \
 	--video_path IPN-hand-dataset \
 	--annotation_path IPN-hand/annotation_ipnGesture/ipnall_but_None.json \
 	--result_path IPN-hand/results_ipn_adam_avg_max_fc3_resnext \
@@ -9,7 +9,7 @@ python main.py \
     --learning_rate 0.001 \
     --model mstcn \
 	--embedding_dim 128 \
-	--batch_size 256 \
+	--batch_size 64 \
 	--n_classes 13 \
 	--n_finetune_classes 13 \
 	--n_threads 16 \
