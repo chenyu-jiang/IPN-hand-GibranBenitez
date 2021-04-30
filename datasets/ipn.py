@@ -104,6 +104,7 @@ def video_loader(video_dir_path, frame_indices, modality, sample_duration,
                 print(image_path, "------- Does not exist")
                 return video, video_meta
 
+    # video_meta = [((X, Y), width, height)]
     return video, video_meta
 
 def get_default_video_loader(use_preprocessing=False):
@@ -256,7 +257,9 @@ class IPN(data.Dataset):
 
         if self.temporal_transform is not None:
             frame_indices = self.temporal_transform(frame_indices)
+
         clip, clip_meta = self.loader(path, frame_indices, self.modality, self.sample_duration)
+
         oversample_clip =[]
         if self.spatial_transform is not None:
             self.spatial_transform.randomize_parameters()
