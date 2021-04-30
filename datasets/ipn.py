@@ -2,6 +2,7 @@ import torch
 import torch.utils.data as data
 from PIL import Image
 from spatial_transforms import *
+from datasets.preprocess_ipn import preprocess_ipn_dataset
 import os
 import math
 import functools
@@ -10,6 +11,7 @@ import copy
 from numpy.random import randint
 import numpy as np
 import random
+from pathlib import Path
 
 from utils import load_value_file
 import pdb
@@ -44,53 +46,70 @@ def get_default_image_loader():
     #     return pil_loader
 
 
-def video_loader(video_dir_path, frame_indices, modality, sample_duration, image_loader):
-    
+def video_loader(video_dir_path, frame_indices, modality, sample_duration, 
+                image_loader, use_preprocessing=False):
+    while video_dir_path.endswith("/"):
+        video_dir_path = video_dir_path[-1]
+
+    if use_preprocessing and modality in ["seg", "RGB-seg"]:
+        if video_dir_path.endswith("frame") or video_dir_path.endswith("segment"):
+            root_dir_path = Path(video_dir_path).parent.absolute()
+        else:
+            root_dir_path = video_dir_path
+        clip_position_path = os.path.join(root_dir_path, "clip_positions.json")
+        with open(clip_position_path, "r") as f:
+            # clip_positions: filename -> ((top-left corner), width, height)
+            clip_positions_dict = json.load(f)
+    else:
+        clip_positions_dict = {}
+
     video = []
+    # contains image patch's position info if use_preprocessing
+    # in the format of ((top-left corner), width, height)
+    video_meta = [] 
     if modality in ['RGB', 'flo', 'seg']:
         for i in frame_indices:
-            image_path = os.path.join(video_dir_path, '{:s}_{:06d}.jpg'.format(video_dir_path.split('/')[-1],i))
+            file_name = '{:s}_{:06d}.jpg'.format(video_dir_path.split('/')[-1],i)
+            image_path = os.path.join(video_dir_path, file_name)
             if os.path.exists(image_path):
-                
                 video.append(image_loader(image_path, modality))
+                if modality == "seg" and use_preprocessing:
+                    video_meta.append(clip_positions_dict[file_name])
             else:
                 print(image_path, "------- Does not exist")
-                return video
+                return video, video_meta
     elif modality in ['RGB-flo', 'RGB-seg']:
-        for i in frame_indices: # index 35 is used to change img to flow
-        # seg1CM42_21_R_#156_000076
-            image_path = os.path.join(video_dir_path, '{:s}_{:06d}.jpg'.format(video_dir_path.split('/')[-1],i))
+        for i in frame_indices: 
+            # index 35 is used to change img to flow
+            # seg1CM42_21_R_#156_000076
+
+            file_name = '{:s}_{:06d}.jpg'.format(video_dir_path.split('/')[-1],i)
+            image_path = os.path.join(video_dir_path, file_name)
 
             if modality.split('-')[1] == 'flo':
                 sensor = 'flow'
             elif modality.split('-')[1] == 'seg':
                 sensor = 'segment'
-            image_path_depth = os.path.join(video_dir_path.replace('frames',sensor), '{:s}_{:06d}.jpg'.format(video_dir_path.split('/')[-1],i))
+            image_path_depth = os.path.join(video_dir_path.replace('frames',sensor), file_name)
             
             image = image_loader(image_path, 'RGB')
             image_depth = image_loader(image_path_depth, 'Depth')
-
-            # preprocess segment images
-            if sensor == 'segment':
-                image_depth_pixels = image_depth.load()
-                for i in range(image_depth.size[0]): # for every pixel:
-                    for j in range(image_depth.size[1]):
-                        R, G, B = image_depth_pixels[i, j]
-                        if R > 200 or G < 200 or B < 200:
-                            image_depth_pixels[i,j] = (0, 0 ,0)
+            if modality == "RGB-seg" and use_preprocessing:
+                video_meta.append(clip_positions_dict[file_name])
 
             if os.path.exists(image_path):
                 video.append(image)
                 video.append(image_depth)
             else:
                 print(image_path, "------- Does not exist")
-                return video
-    
-    return video
+                return video, video_meta
 
-def get_default_video_loader():
+    return video, video_meta
+
+def get_default_video_loader(use_preprocessing=False):
     image_loader = get_default_image_loader()
-    return functools.partial(video_loader, image_loader=image_loader)
+    return functools.partial(video_loader, image_loader=image_loader, 
+                            use_preprocessing=use_preprocessing)
 
 
 def load_annotation_data(data_file_path):
@@ -123,7 +142,10 @@ def get_video_names_and_annotations(data, subset):
 
 
 def make_dataset(root_path, annotation_path, subset, n_samples_for_each_video,
-                 sample_duration):
+                 sample_duration, use_preprocessing=False):
+    if use_preprocessing:
+        root_path, video_dir_path, clip_position_path = preprocess_ipn_dataset(root_dir_path)
+
     data = load_annotation_data(annotation_path)
     video_names, annotations = get_video_names_and_annotations(data, subset)
     class_to_idx = get_class_labels(data)
@@ -206,17 +228,18 @@ class IPN(data.Dataset):
                  target_transform=None,
                  sample_duration=16,
                  modality='RGB',
-                 get_loader=get_default_video_loader):
+                 get_loader=get_default_video_loader,
+                 use_preprocessing = False):
         self.data, self.class_names = make_dataset(
             root_path, annotation_path, subset, n_samples_for_each_video,
-            sample_duration)
+            sample_duration, )
 
         self.spatial_transform = spatial_transform
         self.temporal_transform = temporal_transform
         self.target_transform = target_transform
         self.modality = modality
         self.sample_duration = sample_duration
-        self.loader = get_loader()
+        self.loader = get_loader(use_preprocessing=use_preprocessing)
 
     def __getitem__(self, index):
         """

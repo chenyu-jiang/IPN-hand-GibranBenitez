@@ -82,7 +82,7 @@ class DilatedResidualLayer(nn.Module):
 class MultiStageTemporalConvNet(nn.Module):
     """Multi Stage Temporal Convolution Network (https://arxiv.org/pdf/1903.01945.pdf)"""
 
-    def __init__(self, embed_size, encoder='resnet34', n_classes=400, input_size=(224, 224), pretrained=True,
+    def __init__(self, embed_size, encoder='resnext50_32x4d', n_classes=400, input_size=(224, 224), pretrained=True,
                  input_channels=3, num_stages=1, num_layers=5, num_f_maps=0, causal_config='none',
                  CTHW_layout=False):
         super().__init__()
