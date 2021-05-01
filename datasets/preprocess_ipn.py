@@ -2,6 +2,7 @@ import cv2
 import numpy as np
 import os
 from tqdm import tqdm
+import imutils
 
 import multiprocessing
 from multiprocessing import Pool
@@ -28,6 +29,7 @@ def preprocess_clip(args):
     interp_idxes = []
     rgb_imgs = []
     seg_imgs = []
+    gravity_center = []
     for idx, fn in enumerate(filenames):
         rgb_img = cv2.imread(os.path.join(frame_clip_prefix, fn) ,cv2.IMREAD_COLOR)
         seg_img = cv2.imread(os.path.join(seg_clip_prefix, fn) ,cv2.IMREAD_COLOR)
@@ -46,8 +48,10 @@ def preprocess_clip(args):
             interp_idxes.append(idx)
             continue
 
+        gravity_x, gravity_y = get_gravity_centor(seg_img)
+
         bounding_box_positions.append((corner, width, height))
-    
+        gravity_center.append((gravity_x,gravity_y))
     # fill in the empty bounding boxes
     if needs_interp:
         # flatten bounding_box_positions
@@ -144,6 +148,33 @@ def crop_images_by_bounding_box(imgs, corner, width, height, output_width=224, o
             (output_width, output_height), 
             interpolation=cv2.INTER_LINEAR))
     return cropped_images
+
+def get_gravity_centor(img, binarize_thresh=20):
+    img_grey = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
+    _, img_binarized = cv2.threshold(img_grey, binarize_thresh, 255, cv2.ADAPTIVE_THRESH_MEAN_C)
+    # img_binarized = cv2.bitwise_not(img_binarized)
+    contours = cv2.findContours(img_binarized, 1, 2)
+    contours = imutils.grab_contours(contours)
+    if len(contours) == 0:
+        # contours not found
+        gravity_x = 0
+        gravity_y = 0
+        return gravity_x,gravity_y
+    else:
+        largest_contour_length = 0
+        for c in contours:
+            if len(c) <= largest_contour_length:
+                continue
+            largest_contour_length = len(c)
+            M = cv2.moments(c)
+            if M["m00"] == 0:
+                gravity_x = 0
+                gravity_y = 0
+                continue
+            gravity_x = int(M["m10"] / M["m00"])
+            gravity_y = int(M["m01"] / M["m00"])
+            cv2.waitKey(0)
+    return gravity_x, gravity_y
 
 def preprocess_ipn_dataset(dataset_prefix, frames_dir="frames", segs_dir="segment"):
     preprocessed_dir = os.path.join(dataset_prefix, "preprocessed")
