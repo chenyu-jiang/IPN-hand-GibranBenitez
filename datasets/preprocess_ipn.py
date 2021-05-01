@@ -54,13 +54,13 @@ def preprocess_clip(args):
         gravity_center[i,:] = [gravity_x, gravity_y]
 
     # get the change of the gravity center indicating the movement
-    gravity_diffenrency = np.zeros((len(filenames),2))
-    for i in range(1, gravity_diffenrency.shape[0]):
+    gravity_differency = np.zeros((len(filenames),2))
+    for i in range(1, gravity_differency.shape[0]):
         if sum(gravity_center[i][:]) == 0:
             pass
         else:
-            gravity_diffenrency[i, :] = gravity_center[i, :] - gravity_center[i - 1, :]
-    
+            gravity_differency[i, :] = gravity_center[i, :] - gravity_center[i - 1, :]
+    np.savetxt("gravity_differency.txt",gravity_differency,fmd="%d")
 
     # fill in the empty bounding boxes
     if needs_interp:
@@ -102,7 +102,6 @@ def preprocess_clip(args):
         rgb_img, seg_img = crop_images_by_bounding_box([rgb_img, seg_img], corner, width, height)
         cv2.imwrite(os.path.join(preprocessed_frames_clip_prefix, fn), rgb_img)
         cv2.imwrite(os.path.join(preprocessed_seg_clip_prefix, fn), seg_img)
-
 
     return preprocessed_clip_positions_dict
 
