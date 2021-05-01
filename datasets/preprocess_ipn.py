@@ -29,7 +29,8 @@ def preprocess_clip(args):
     interp_idxes = []
     rgb_imgs = []
     seg_imgs = []
-    gravity_center = []
+    gravity_center = np.zeros((len(filenames),2))
+    i = 0
     for idx, fn in enumerate(filenames):
         rgb_img = cv2.imread(os.path.join(frame_clip_prefix, fn) ,cv2.IMREAD_COLOR)
         seg_img = cv2.imread(os.path.join(seg_clip_prefix, fn) ,cv2.IMREAD_COLOR)
@@ -48,10 +49,19 @@ def preprocess_clip(args):
             interp_idxes.append(idx)
             continue
 
-        gravity_x, gravity_y = get_gravity_centor(seg_img)
-
         bounding_box_positions.append((corner, width, height))
-        gravity_center.append((gravity_x,gravity_y))
+        gravity_x, gravity_y = get_gravity_centor(seg_img)
+        gravity_center[i,:] = [gravity_x, gravity_y]
+
+    # get the change of the gravity center indicating the movement
+    gravity_diffenrency = np.zeros((len(filenames),2))
+    for i in range(1, gravity_diffenrency.shape[0]):
+        if sum(gravity_center[i][:]) == 0:
+            pass
+        else:
+            gravity_diffenrency[i, :] = gravity_center[i, :] - gravity_center[i - 1, :]
+    
+
     # fill in the empty bounding boxes
     if needs_interp:
         # flatten bounding_box_positions
@@ -92,6 +102,8 @@ def preprocess_clip(args):
         rgb_img, seg_img = crop_images_by_bounding_box([rgb_img, seg_img], corner, width, height)
         cv2.imwrite(os.path.join(preprocessed_frames_clip_prefix, fn), rgb_img)
         cv2.imwrite(os.path.join(preprocessed_seg_clip_prefix, fn), seg_img)
+
+
     return preprocessed_clip_positions_dict
 
 def supress_non_hand_pixels(img):
