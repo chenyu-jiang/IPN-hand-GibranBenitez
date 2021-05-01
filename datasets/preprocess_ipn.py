@@ -3,6 +3,7 @@ import numpy as np
 import os
 from tqdm import tqdm
 import imutils
+import json
 
 import multiprocessing
 from multiprocessing import Pool
@@ -144,17 +145,24 @@ def crop_images_by_bounding_box(imgs, corner, width, height, output_width=224, o
     cropped_images = []
     for img in imgs:
         # pad image if the bounding box extends out of bounds
-        y_size, x_size = img.shape
+        if len(img.shape) == 3:
+            y_size, x_size, _ = img.shape
+        else:
+            y_size, x_size = img.shape
         xbef_pad_size = max(0, -cX)
-        xaft_pad_size = max(0, cX+width-x_size)
+        xaft_pad_size = max(0, cX + width - x_size)
         ybef_pad_size = max(0, -cY)
-        yaft_pad_size = max(0, cY+height-y_size)
+        yaft_pad_size = max(0, cY + height - y_size)
+        
+        paddings = [(ybef_pad_size, yaft_pad_size), 
+                    (xbef_pad_size, xaft_pad_size)]
+        if len(img.shape) == 3:
+            paddings.append((0, 0))
 
-        padded_img = np.pad(img, [(ybef_pad_size, yaft_pad_size), 
-                                    (xbef_pad_size, xaft_pad_size)])
+        padded_img = np.pad(img, paddings)
 
         cropped_images.append(cv2.resize(
-            padded_img[cY+ybef_pad_size : cY+height+ybef_pad_size.
+            padded_img[cY+ybef_pad_size : cY+height+ybef_pad_size,
                 cX+xbef_pad_size : cX+width+xbef_pad_size],
             (output_width, output_height), 
             interpolation=cv2.INTER_LINEAR))
