@@ -89,17 +89,19 @@ def preprocess_clip(args):
         rgb_img = rgb_imgs[idx]
         seg_img = seg_imgs[idx]
 
-        preprocessed_clip_positions_dict[fn] = (corner, width, height)
+        pos_gravity = gravity_center[idx]
+
+        preprocessed_clip_positions_dict[fn] = (pos_gravity, width, height)
 
         rgb_img, seg_img = crop_images_by_bounding_box([rgb_img, seg_img], corner, width, height)
         cv2.imwrite(os.path.join(preprocessed_frames_clip_prefix, fn), rgb_img)
         cv2.imwrite(os.path.join(preprocessed_seg_clip_prefix, fn), seg_img)
 
     # change the position of bounding box corner into gravity center
-    for idx, pos_gravity in enumerate(gravity_center):
-        (gravity_x, gravity_y) = pos_gravity
-        preprocessed_clip_positions_dict[fn][0][0] = gravity_x
-        preprocessed_clip_positions_dict[fn][0][1] = gravity_y
+    # for idx, pos_gravity in enumerate(gravity_center):
+    #     (gravity_x, gravity_y) = pos_gravity
+    #     preprocessed_clip_positions_dict[fn][0][0] = gravity_x
+    #     preprocessed_clip_positions_dict[fn][0][1] = gravity_y
 
     return preprocessed_clip_positions_dict
 
