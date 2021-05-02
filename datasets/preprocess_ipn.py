@@ -29,11 +29,14 @@ def preprocess_clip(args):
     interp_idxes = []
     rgb_imgs = []
     seg_imgs = []
-    gravity_center = np.zeros((len(filenames),2))
-    i = 0
+    gravity_center = []
     for idx, fn in enumerate(filenames):
         rgb_img = cv2.imread(os.path.join(frame_clip_prefix, fn) ,cv2.IMREAD_COLOR)
         seg_img = cv2.imread(os.path.join(seg_clip_prefix, fn) ,cv2.IMREAD_COLOR)
+
+        # get the normalized gravity center
+        gravity_x, gravity_y = get_gravity_centor(seg_img)
+        gravity_center.append((gravity_x,gravity_y))
 
         supress_non_hand_pixels(seg_img)
 
@@ -49,17 +52,7 @@ def preprocess_clip(args):
             continue
 
         bounding_box_positions.append((corner, width, height))
-        gravity_x, gravity_y = get_gravity_centor(seg_img)
-        gravity_center[i,:] = [gravity_x, gravity_y]
 
-    # get the change of the gravity center indicating the movement
-    gravity_differency = np.zeros((len(filenames),2))
-    for i in range(1, gravity_differency.shape[0]):
-        if sum(gravity_center[i][:]) == 0:
-            pass
-        else:
-            gravity_differency[i, :] = gravity_center[i, :] - gravity_center[i - 1, :]
-    np.savetxt("gravity_differency.txt",gravity_differency,fmd="%d")
 
     # fill in the empty bounding boxes
     if interp_idxes:
@@ -101,6 +94,12 @@ def preprocess_clip(args):
         rgb_img, seg_img = crop_images_by_bounding_box([rgb_img, seg_img], corner, width, height)
         cv2.imwrite(os.path.join(preprocessed_frames_clip_prefix, fn), rgb_img)
         cv2.imwrite(os.path.join(preprocessed_seg_clip_prefix, fn), seg_img)
+
+    # change the position of bounding box corner into gravity center
+    for idx, pos_gravity in enumerate(gravity_center):
+        (gravity_x, gravity_y) = pos_gravity
+        preprocessed_clip_positions_dict[fn][0][0] = gravity_x
+        preprocessed_clip_positions_dict[fn][0][1] = gravity_y
 
     return preprocessed_clip_positions_dict
 
@@ -165,12 +164,14 @@ def crop_images_by_bounding_box(imgs, corner, width, height, output_width=224, o
             interpolation=cv2.INTER_LINEAR))
     return cropped_images
 
-def get_gravity_centor(img, binarize_thresh=20):
+def get_gravity_centor(img, binarize_thresh=20, position_encoding_para=0.5):
     img_grey = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
     _, img_binarized = cv2.threshold(img_grey, binarize_thresh, 255, cv2.ADAPTIVE_THRESH_MEAN_C)
     # img_binarized = cv2.bitwise_not(img_binarized)
     contours = cv2.findContours(img_binarized, 1, 2)
     contours = imutils.grab_contours(contours)
+    gravity_x = 0
+    gravity_y = 0
     if len(contours) == 0:
         # contours not found
         gravity_x = 0
@@ -190,6 +191,9 @@ def get_gravity_centor(img, binarize_thresh=20):
             gravity_x = int(M["m10"] / M["m00"])
             gravity_y = int(M["m01"] / M["m00"])
             cv2.waitKey(0)
+    # Normalize the gravity
+    gravity_x = position_encoding_para*gravity_x/(img.shape[0]-1)
+    gravity_y = position_encoding_para*gravity_y/(img.shape[1]-1)
     return gravity_x, gravity_y
 
 def preprocess_ipn_dataset(dataset_prefix, frames_dir="frames", segs_dir="segment"):
