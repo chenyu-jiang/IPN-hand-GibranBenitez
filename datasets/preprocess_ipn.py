@@ -59,7 +59,7 @@ def preprocess_clip(args):
             pass
         else:
             gravity_differency[i, :] = gravity_center[i, :] - gravity_center[i - 1, :]
-    np.savetxt("gravity_differency.txt",gravity_differency,fmd="%d")
+    np.savetxt("gravity_differency.txt",gravity_differency, fmt="%d")
 
     # fill in the empty bounding boxes
     if interp_idxes:
