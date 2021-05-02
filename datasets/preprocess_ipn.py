@@ -53,13 +53,14 @@ def preprocess_clip(args):
         gravity_center[i,:] = [gravity_x, gravity_y]
 
     # get the change of the gravity center indicating the movement
-    gravity_diffenrency = np.zeros((len(filenames),2))
-    for i in range(1, gravity_diffenrency.shape[0]):
+    gravity_differency = np.zeros((len(filenames),2))
+    for i in range(1, gravity_differency.shape[0]):
         if sum(gravity_center[i][:]) == 0:
             pass
         else:
-            gravity_diffenrency[i, :] = gravity_center[i, :] - gravity_center[i - 1, :]
-    
+            gravity_differency[i, :] = gravity_center[i, :] - gravity_center[i - 1, :]
+    np.savetxt("gravity_differency.txt",gravity_differency,fmd="%d")
+
     # fill in the empty bounding boxes
     if interp_idxes:
         # flatten bounding_box_positions
