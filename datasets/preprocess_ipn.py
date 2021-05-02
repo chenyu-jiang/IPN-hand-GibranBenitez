@@ -26,7 +26,6 @@ def preprocess_clip(args):
     filenames = sorted([fn for fn in os.listdir(seg_clip_prefix) if not fn.startswith(".")])
 
     bounding_box_positions = []
-    needs_interp = False
     interp_idxes = []
     rgb_imgs = []
     seg_imgs = []
@@ -46,7 +45,6 @@ def preprocess_clip(args):
         except EmptySegMaskError:
             # empty seg mask, should infer bounding box info from neighbours
             bounding_box_positions.append(None)
-            needs_interp = True
             interp_idxes.append(idx)
             continue
 
@@ -62,9 +60,8 @@ def preprocess_clip(args):
         else:
             gravity_diffenrency[i, :] = gravity_center[i, :] - gravity_center[i - 1, :]
     
-
     # fill in the empty bounding boxes
-    if needs_interp:
+    if interp_idxes:
         # flatten bounding_box_positions
         cXs = []
         cYs = []
@@ -149,10 +146,10 @@ def crop_images_by_bounding_box(imgs, corner, width, height, output_width=224, o
             y_size, x_size, _ = img.shape
         else:
             y_size, x_size = img.shape
-        xbef_pad_size = max(0, -cX)
-        xaft_pad_size = max(0, cX + width - x_size)
-        ybef_pad_size = max(0, -cY)
-        yaft_pad_size = max(0, cY + height - y_size)
+        xbef_pad_size = int(max(0, -cX))
+        xaft_pad_size = int(max(0, cX + width - x_size))
+        ybef_pad_size = int(max(0, -cY))
+        yaft_pad_size = int(max(0, cY + height - y_size))
         
         paddings = [(ybef_pad_size, yaft_pad_size), 
                     (xbef_pad_size, xaft_pad_size)]
@@ -160,11 +157,10 @@ def crop_images_by_bounding_box(imgs, corner, width, height, output_width=224, o
             paddings.append((0, 0))
 
         padded_img = np.pad(img, paddings)
-
         cropped_images.append(cv2.resize(
-            padded_img[cY+ybef_pad_size : cY+height+ybef_pad_size,
-                cX+xbef_pad_size : cX+width+xbef_pad_size],
-            (output_width, output_height), 
+            padded_img[int(cY+ybef_pad_size) : int(cY+height+ybef_pad_size),
+                int(cX+xbef_pad_size) : int(cX+width+xbef_pad_size)],
+            (output_width, output_height),
             interpolation=cv2.INTER_LINEAR))
     return cropped_images
 
