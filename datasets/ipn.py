@@ -109,7 +109,7 @@ def video_loader(video_dir_path, frame_indices, modality, sample_duration,
 
 def get_default_video_loader(use_preprocessing=False):
     image_loader = get_default_image_loader()
-    return functools.partial(video_loader, image_loader=image_loader, 
+    return functools.partial(video_loader, image_loader=image_loader,
                             use_preprocessing=use_preprocessing)
 
 
@@ -230,7 +230,7 @@ class IPN(data.Dataset):
                  sample_duration=16,
                  modality='RGB',
                  get_loader=get_default_video_loader,
-                 use_preprocessing = False):
+                 use_preprocessing = True):
         self.data, self.class_names = make_dataset(
             root_path, annotation_path, subset, n_samples_for_each_video,
             sample_duration, )
@@ -260,7 +260,7 @@ class IPN(data.Dataset):
 
         clip, clip_meta = self.loader(path, frame_indices, self.modality, self.sample_duration)
 
-        oversample_clip =[]
+        oversample_clip = []
         if self.spatial_transform is not None:
             self.spatial_transform.randomize_parameters()
             clip = [self.spatial_transform(img) for img in clip]
@@ -272,12 +272,13 @@ class IPN(data.Dataset):
         # target is just a single label index
 
         # TODO(cyjiang): transform clip_meta into appropriate data form
+        gravity_position = [i[0] for i in clip_meta]
 
         target = self.data[index]
         if self.target_transform is not None:
             target = self.target_transform(target)
 
-        return clip, target
+        return clip, gravity_position, target
 
     def __len__(self):
         return len(self.data)
