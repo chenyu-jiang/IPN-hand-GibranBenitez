@@ -121,7 +121,7 @@ class MultiStageTemporalConvNet(nn.Module):
         # decoder
         self.decoder = MsTcn(num_stages, num_layers, embed_size, encoder.features_shape[0], embed_size, causal)
 
-    def forward(self, images):
+    def forward(self, images, positions):
         """Extract the image feature vectors and run them through the MS-TCN"""
         if self.CTHW_layout:
             # (B x C x T x H x W) -> (B x T x C x H x W)
@@ -148,6 +148,10 @@ class MultiStageTemporalConvNet(nn.Module):
 
         # 2 * (B x embed_size) -> (B x embed_size * 2)
         ys_out = torch.cat((ys_avg, ys_max), dim = 1)
+
+        # concate the position batch
+        # B * 2  including B number of composition of (x,y)
+        ys_out = torch.cat((ys_out, positions), dim = 1)
 
         ys = self.fc1(ys_out)
         ys = self.relu(ys)
