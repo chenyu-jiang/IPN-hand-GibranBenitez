@@ -23,15 +23,16 @@ def val_epoch(epoch, data_loader, model, criterion, opt, logger, global_step, ts
     printer = 50 if opt.dataset == 'jester' else 5
 
     end_time = time.time()
-    for i, (inputs, targets) in enumerate(data_loader):
+    for i, (inputs, positions, targets) in enumerate(data_loader):
         data_time.update(time.time() - end_time)
 
         if not opt.no_cuda:
             targets = targets.cuda(non_blocking=True)
         with torch.no_grad():
             inputs = Variable(inputs)
+            positions = Variable(positions)
             targets = Variable(targets)
-            outputs = model(inputs)
+            outputs = model(inputs, positions)
         loss = criterion(outputs, targets)
         acc = calculate_accuracy(outputs, targets)
         precision = calculate_precision(outputs, targets) #
