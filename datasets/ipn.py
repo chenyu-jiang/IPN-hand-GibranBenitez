@@ -233,7 +233,7 @@ class IPN(data.Dataset):
                  use_preprocessing = True):
         self.data, self.class_names = make_dataset(
             root_path, annotation_path, subset, n_samples_for_each_video,
-            sample_duration, )
+            sample_duration, use_preprocessing = use_preprocessing)
 
         self.spatial_transform = spatial_transform
         self.temporal_transform = temporal_transform
