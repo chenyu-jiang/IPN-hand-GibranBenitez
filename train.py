@@ -25,15 +25,16 @@ def train_epoch(epoch, data_loader, model, criterion, optimizer, opt,
     
     end_time = time.time()
     # i, (inputs, targets) = next(iter(enumerate(data_loader)))
-    for i, (inputs, targets) in enumerate(data_loader):
+    for i, (inputs, gravity_position, targets) in enumerate(data_loader):
         data_time.update(time.time() - end_time)
 
         if not opt.no_cuda:
             targets = targets.cuda(non_blocking=True)
         inputs = Variable(inputs)
+        positions = Variable(gravity_position)
         targets = Variable(targets)
         #pdb.set_trace()
-        outputs = model(inputs)
+        outputs = model(inputs, positions)
         loss = criterion(outputs, targets)
 
         acc = calculate_accuracy(outputs, targets)

@@ -145,7 +145,7 @@ def get_video_names_and_annotations(data, subset):
 def make_dataset(root_path, annotation_path, subset, n_samples_for_each_video,
                  sample_duration, use_preprocessing=False):
     if use_preprocessing:
-        root_path, video_dir_path, clip_position_path = preprocess_ipn_dataset(root_dir_path)
+        root_path, video_dir_path, clip_position_path = preprocess_ipn_dataset(root_path)
 
     data = load_annotation_data(annotation_path)
     video_names, annotations = get_video_names_and_annotations(data, subset)
@@ -274,7 +274,7 @@ class IPN(data.Dataset):
         # target is just a single label index
 
         # TODO(cyjiang): transform clip_meta into appropriate data form
-        gravity_position = [i[0] for i in clip_meta]
+        gravity_position = np.array([i[0] for i in clip_meta])
 
         target = self.data[index]
         if self.target_transform is not None:
