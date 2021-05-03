@@ -229,8 +229,10 @@ class IPN(data.Dataset):
                  target_transform=None,
                  sample_duration=16,
                  modality='RGB',
-                 get_loader=get_default_video_loader,
+                 get_loader=None,
                  use_preprocessing = True):
+        if get_loader is None:
+            get_loader = get_default_video_loader(use_preprocessing= use_preprocessing)
         self.data, self.class_names = make_dataset(
             root_path, annotation_path, subset, n_samples_for_each_video,
             sample_duration, use_preprocessing = use_preprocessing)
