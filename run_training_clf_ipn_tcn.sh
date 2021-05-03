@@ -1,9 +1,9 @@
 #!/bin/bash
 python main.py \
-	--root_path /home/net/cyjiang/COMP9501 \
+	--root_path /home/cyjiang \
 	--video_path IPN-hand-dataset \
 	--annotation_path IPN-hand/annotation_ipnGesture/ipnall_but_None.json \
-	--result_path IPN-hand/results_ipn_adam_avg_max_fc3_resnext \
+	--result_path IPN-hand/results_ipn_cropped_test \
 	--dataset ipn \
 	--sample_duration 32 \
     --learning_rate 0.001 \
