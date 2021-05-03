@@ -265,7 +265,7 @@ class IPN(data.Dataset):
         # target is just a single label index
 
         # TODO(cyjiang): transform clip_meta into appropriate data form
-        gravity_position = np.array([i[0] for i in clip_meta])
+        gravity_position = np.array([i[0] for i in clip_meta], dtype=np.float32)
 
         target = self.data[index]
         if self.target_transform is not None:

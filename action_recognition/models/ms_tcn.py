@@ -119,7 +119,7 @@ class MultiStageTemporalConvNet(nn.Module):
             raise RuntimeError("Unknown causal config")
 
         # decoder
-        self.decoder = MsTcn(num_stages, num_layers, embed_size, encoder.features_shape[0], embed_size, causal)
+        self.decoder = MsTcn(num_stages, num_layers, embed_size, encoder.features_shape[0] + 2, embed_size, causal)
 
     def forward(self, images, positions):
         """Extract the image feature vectors and run them through the MS-TCN"""
@@ -139,7 +139,7 @@ class MultiStageTemporalConvNet(nn.Module):
         features = features.squeeze(-1).squeeze(-1).transpose(1, 2)
         # positions: B x T x 2 -> B x 2 x T
         positions = positions.permute(0,2,1)
-        features = torch.cat((features, positions), dim = 2)
+        features = torch.cat((features, positions), dim = 1)
         ys = self.decoder(features)
         # (B x n_classes x T) -> (B x T x n_classes)
         ys = ys.transpose(1, 2)
