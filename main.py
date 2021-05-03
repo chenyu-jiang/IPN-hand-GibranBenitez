@@ -111,7 +111,7 @@ if __name__ == '__main__':
                 opt.scales, opt.sample_size, crop_positions=['c'])
         spatial_transform = Compose([
             # crop_method,
-            # SpatialElasticDisplacement(),
+            SpatialElasticDisplacement(),
             ToTensor(opt.norm_value), norm_method
         ])
         if opt.train_temporal == 'random':
