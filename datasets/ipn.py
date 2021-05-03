@@ -46,27 +46,13 @@ def get_default_image_loader():
     #     return pil_loader
 
 
-def video_loader(video_dir_path, frame_indices, modality, sample_duration, 
+def video_loader(video_dir_path, frame_indices, clip_positions_dict, modality, sample_duration, 
                 image_loader, use_preprocessing=False):
-    while video_dir_path.endswith("/"):
-        video_dir_path = video_dir_path[-1]
-
-    if use_preprocessing and modality in ["seg", "RGB-seg"]:
-        if video_dir_path.endswith("frame") or video_dir_path.endswith("segment"):
-            root_dir_path = Path(video_dir_path).parent.absolute()
-        else:
-            root_dir_path = video_dir_path
-        clip_position_path = os.path.join(root_dir_path, "clip_positions.json")
-        with open(clip_position_path, "r") as f:
-            # clip_positions: filename -> ((top-left corner), width, height)
-            clip_positions_dict = json.load(f)
-    else:
-        clip_positions_dict = {}
 
     video = []
     # contains image patch's position info if use_preprocessing
     # in the format of ((top-left corner), width, height)
-    video_meta = [] 
+    video_meta = []
     if modality in ['RGB', 'flo', 'seg']:
         for i in frame_indices:
             file_name = '{:s}_{:06d}.jpg'.format(video_dir_path.split('/')[-1],i)
@@ -147,6 +133,13 @@ def make_dataset(root_path, annotation_path, subset, n_samples_for_each_video,
     if use_preprocessing:
         root_path, video_dir_path, clip_position_path = preprocess_ipn_dataset(root_path)
 
+    if use_preprocessing and os.path.exists(clip_position_path):
+        with open(clip_position_path, "r") as f:
+            # clip_positions: filename -> ((top-left corner), width, height)
+            clip_positions_dict = json.load(f)
+    else:
+        clip_positions_dict = {}
+
     data = load_annotation_data(annotation_path)
     video_names, annotations = get_video_names_and_annotations(data, subset)
     class_to_idx = get_class_labels(data)
@@ -199,7 +192,7 @@ def make_dataset(root_path, annotation_path, subset, n_samples_for_each_video,
                     range(j, min(n_frames + 1, j + sample_duration)))
                 dataset.append(sample_j)
 
-    return dataset, idx_to_class
+    return dataset, idx_to_class, clip_positions_dict
 
 
 class IPN(data.Dataset):
@@ -231,7 +224,7 @@ class IPN(data.Dataset):
                  modality='RGB',
                  get_loader=get_default_video_loader,
                  use_preprocessing = True):
-        self.data, self.class_names = make_dataset(
+        self.data, self.class_names, self.clip_positions_dict = make_dataset(
             root_path, annotation_path, subset, n_samples_for_each_video,
             sample_duration, use_preprocessing = use_preprocessing)
 
@@ -258,7 +251,7 @@ class IPN(data.Dataset):
         if self.temporal_transform is not None:
             frame_indices = self.temporal_transform(frame_indices)
 
-        clip, clip_meta = self.loader(path, frame_indices, self.modality, self.sample_duration)
+        clip, clip_meta = self.loader(path, frame_indices, self.clip_positions_dict, self.modality, self.sample_duration)
 
         oversample_clip = []
         if self.spatial_transform is not None:
