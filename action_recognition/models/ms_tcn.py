@@ -137,8 +137,8 @@ class MultiStageTemporalConvNet(nn.Module):
         features = unsquash_dim(features, 0, (batch_size, -1))
         # (B x T x C x 1 x 1) -> (B x C x T)
         features = features.squeeze(-1).squeeze(-1).transpose(1, 2)
-        # positions = positions.permute(0,2,1)
-        # positions: B x T x 2 or B x 2 x T ?
+        # positions: B x T x 2 -> B x 2 x T
+        positions = positions.permute(0,2,1)
         features = torch.cat((features, positions), dim = 2)
         ys = self.decoder(features)
         # (B x n_classes x T) -> (B x T x n_classes)
