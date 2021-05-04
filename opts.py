@@ -353,6 +353,11 @@ def parse_opts_offline():
         help="""TCN causality, can be 'none', 'all', or 'mix_X', 
                 where X is an integer indicating the number of 
                 non-causal layers used in each stage.""")
+    
+    parser.add_argument(
+        '--use_preprocessing', 
+        action='store_true',
+        help="""Whether to use preprocessed dataset.""")
 
     args = parser.parse_args()
 

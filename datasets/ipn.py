@@ -223,7 +223,7 @@ class IPN(data.Dataset):
                  sample_duration=16,
                  modality='RGB',
                  get_loader=get_default_video_loader,
-                 use_preprocessing = True):
+                 use_preprocessing = False):
         self.data, self.class_names, self.clip_positions_dict = make_dataset(
             root_path, annotation_path, subset, n_samples_for_each_video,
             sample_duration, use_preprocessing = use_preprocessing)

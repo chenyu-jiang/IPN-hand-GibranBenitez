@@ -84,7 +84,7 @@ class MultiStageTemporalConvNet(nn.Module):
 
     def __init__(self, embed_size, encoder='resnext50_32x4d', n_classes=400, input_size=(224, 224), pretrained=True,
                  input_channels=3, num_stages=1, num_layers=5, num_f_maps=0, causal_config='none',
-                 CTHW_layout=False):
+                 CTHW_layout=False, use_preprocessing=True):
         super().__init__()
 
         # encoder
@@ -97,6 +97,7 @@ class MultiStageTemporalConvNet(nn.Module):
         self.fc2 = nn.Linear(embed_size, embed_size)
         self.fc3 = nn.Linear(embed_size, self.n_classes)
         self.relu = nn.LeakyReLU()
+        self.use_preprocessing = use_preprocessing
 
 
         # for backward compatibility
@@ -119,7 +120,10 @@ class MultiStageTemporalConvNet(nn.Module):
             raise RuntimeError("Unknown causal config")
 
         # decoder
-        self.decoder = MsTcn(num_stages, num_layers, embed_size, encoder.features_shape[0] + 2, embed_size, causal)
+        if use_preprocessing:
+            self.decoder = MsTcn(num_stages, num_layers, embed_size, encoder.features_shape[0] + 2, embed_size, causal)
+        else:
+            self.decoder = MsTcn(num_stages, num_layers, embed_size, encoder.features_shape[0], embed_size, causal)
 
     def forward(self, images, positions):
         """Extract the image feature vectors and run them through the MS-TCN"""
@@ -138,8 +142,9 @@ class MultiStageTemporalConvNet(nn.Module):
         # (B x T x C x 1 x 1) -> (B x C x T)
         features = features.squeeze(-1).squeeze(-1).transpose(1, 2)
         # positions: B x T x 2 -> B x 2 x T
-        positions = positions.permute(0,2,1)
-        features = torch.cat((features, positions), dim = 1)
+        if self.use_preprocessing:
+            positions = positions.permute(0,2,1)
+            features = torch.cat((features, positions), dim = 1)
         ys = self.decoder(features)
         # (B x n_classes x T) -> (B x T x n_classes)
         ys = ys.transpose(1, 2)

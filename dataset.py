@@ -52,7 +52,8 @@ def get_training_set(opt, spatial_transform, temporal_transform,
             temporal_transform=temporal_transform,
             target_transform=target_transform,
             sample_duration=opt.sample_duration,
-            modality=opt.modality)
+            modality=opt.modality,
+            use_preprocessing=opt.use_preprocessing)
     elif opt.dataset == 'denso':
         training_data = Denso(
             opt.video_path,
@@ -123,7 +124,8 @@ def get_validation_set(opt, spatial_transform, temporal_transform,
             temporal_transform=temporal_transform,
             target_transform=target_transform,
             sample_duration=opt.sample_duration,
-            modality=opt.modality)
+            modality=opt.modality,
+            use_preprocessing=opt.use_preprocessing)
     elif opt.dataset == 'denso':
         validation_data = Denso(
             opt.video_path,
@@ -200,7 +202,8 @@ def get_test_set(opt, spatial_transform, temporal_transform, target_transform):
             temporal_transform=temporal_transform,
             target_transform=target_transform,
             sample_duration=opt.sample_duration,
-            modality=opt.modality)
+            modality=opt.modality,
+            use_preprocessing=opt.use_preprocessing)
     elif opt.dataset == 'denso':
         test_data = Denso(
             opt.video_path,
