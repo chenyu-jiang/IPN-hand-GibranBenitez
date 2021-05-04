@@ -3,8 +3,11 @@ python main.py \
 	--root_path /home/cyjiang \
 	--video_path IPN-hand-dataset \
 	--annotation_path IPN-hand/annotation_ipnGesture/ipnall_but_None.json \
-	--result_path IPN-hand/results_ipn_adam_avg_max_fc3_resnext_cropped_with_multiscale_cropping \
+	--result_path IPN-hand/results_ipn_adam_avg_max_fc3_resnext_cropped_with_multiscale_cropping_test \
 	--resume_path IPN-hand/results_ipn_adam_avg_max_fc3_resnext_cropped_with_multiscale_cropping/ipnClfRs_TCN_b32_mstcn-18_checkpoint.pth \
+	--no_train \
+	--no_val \
+	--test \
 	--dataset ipn \
 	--sample_duration 32 \
     --learning_rate 0.001 \

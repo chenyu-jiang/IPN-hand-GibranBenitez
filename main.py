@@ -206,7 +206,7 @@ if __name__ == '__main__':
             adjust_learning_rate(optimizer, i, opt.lr_steps)
             global_step = train_epoch(i, train_loader, model, criterion, optimizer, opt,
                         train_logger, train_batch_logger, global_step, train_tensorboard_writer)
-        if not opt.no_val:
+        if not opt.no_val and i % 5 == 0:
             if opt.true_valid:
                 validation_loss, prec1 = val_epoch_true(i, val_loader, model, criterion, opt,
                                         val_logger, global_step, train_tensorboard_writer)
@@ -239,7 +239,8 @@ if __name__ == '__main__':
         temporal_transform = Compose([
             TemporalCenterCrop(opt.sample_duration)
             ])
-        target_transform = VideoID()
+        # target_transform = VideoID()
+        target_transform = ClassLabel()
 
         test_data = get_test_set(opt, spatial_transform, temporal_transform,
                                  target_transform)
