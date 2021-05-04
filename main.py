@@ -110,7 +110,7 @@ if __name__ == '__main__':
             crop_method = MultiScaleCornerCrop(
                 opt.scales, opt.sample_size, crop_positions=['c'])
         spatial_transform = Compose([
-            # crop_method,
+            crop_method,
             SpatialElasticDisplacement(),
             ToTensor(opt.norm_value), norm_method
         ])
